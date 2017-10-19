@@ -363,7 +363,7 @@ void listcode(int from, int to)
 //////////////////////////////////////////////////////////////////////
 void factor(symset fsys)
 {
-	void expr_andbit(symset fsys);
+	void expr_orbit(symset fsys);
 	int i;
 	symset set;
 	
@@ -410,7 +410,7 @@ void factor(symset fsys)
 		{
 			getsym();
 			set = uniteset(createset(SYM_RPAREN, SYM_NULL), fsys);
-			expr_andbit(set);
+			expr_orbit(set);
 			//expression(set);
 			destroyset(set);
 			if (sym == SYM_RPAREN)
@@ -425,7 +425,7 @@ void factor(symset fsys)
 		else if(sym == SYM_MINUS) // UMINUS,  Expr -> '-' Expr
 		{  
 			 getsym();
-			 expr_andbit(fsys);
+			 expr_orbit(fsys);
 			 //expression(fsys);
 			 gen(OPR, 0, OPR_NEG); //不是减
 		}
@@ -433,7 +433,7 @@ void factor(symset fsys)
 		else if(sym == SYM_NOT)
 		{
 			getsym();
-			expr_andbit(fsys);
+			expr_orbit(fsys);
 			//expression(fsys);
 			gen(OPR,0,OPR_NOT);  //NOT
 		}
@@ -518,6 +518,45 @@ void expr_andbit(symset fsys)
 	destroyset(set);
 }
 
+void expr_xor(symset fsys)
+{
+	symset set;
+
+	set = uniteset(fsys, createset(SYM_XOR,SYM_NULL));
+	
+	expr_andbit(set);
+	//term(set);
+	while (sym == SYM_XOR)
+	{
+		getsym();
+		expr_andbit(set);
+		//term(set);
+		gen(OPR, 0, OPR_XOR);
+	} // while
+
+	destroyset(set);
+}
+
+void expr_orbit(symset fsys)
+{
+	symset set;
+
+	set = uniteset(fsys, createset(SYM_ORBIT,SYM_NULL));
+	
+	expr_xor(set);
+	//term(set);
+	while (sym == SYM_ORBIT)
+	{
+		getsym();
+		expr_xor(set);
+		//term(set);
+		gen(OPR, 0, OPR_ORBIT);
+	} // while
+
+	destroyset(set);
+}
+
+/************************10.10添加上面的函数*********************/
 ////////////////////////////////////////////////////
 void condition(symset fsys)
 {
@@ -526,14 +565,14 @@ void condition(symset fsys)
 	if (sym == SYM_ODD)
 	{
 		getsym();
-		expr_andbit(fsys);
+		expr_orbit(fsys);
 		//expression(fsys);
 		gen(OPR, 0, 6);  //OPR_ODD
 	}
 	else
 	{
 		//set = uniteset(relset, fsys);
-		expr_andbit(relset);
+		expr_orbit(relset);
 		//expression(relset);
 		//destroyset(set);
 		if (! inset(sym, relset))
@@ -544,7 +583,8 @@ void condition(symset fsys)
 		{
 			relop = sym;
 			getsym();
-			expression(fsys);
+			expr_orbit(fsys);
+			//expression(fsys);
 			switch (relop)
 			{
 			case SYM_EQU:
@@ -630,7 +670,7 @@ void statement(symset fsys)
 		{
 			error(13); // ':=' expected.
 		}
-		expr_andbit(fsys);
+		expr_orbit(fsys);
 		//expression(fsys);
 		mk = (mask*) &table[i];
 		if (i)
@@ -986,6 +1026,7 @@ void interpret()
 			case OPR_NOT:
 				stack[top] = !stack[top];
 				break;
+			/***10.10添加↓↓↓↓*/
 			case OPR_MOD:
 				top--;
 				stack[top] = stack[top] % stack[top + 1];
@@ -993,6 +1034,14 @@ void interpret()
 			case OPR_ANDBIT:
 				top--;
 				stack[top] = (stack[top] & stack[top + 1]);
+				break;
+			case OPR_ORBIT:
+				top--;
+				stack[top] = (stack[top] | stack[top + 1]);
+				break;
+			case OPR_XOR:
+				top--;
+				stack[top] = (stack[top] ^ stack[top + 1]);
 				break;
 			} // switch
 			break;
